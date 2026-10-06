@@ -43,21 +43,34 @@ func has(list []string, want string) bool {
 
 // Judge 判定一个称号能不能解锁，并在成功时记进玩家的已解锁列表。
 func Judge(rules []Rule, p *Player, title string, c *Counter) Decision {
+	decide := func(status string) Decision {
+		return Decision{Title: title, Status: status, Unlocked: len(p.Unlocked), Scanned: c.Scanned}
+	}
+	if has(p.Unlocked, title) {
+		return decide("unlocked")
+	}
 	var rule *Rule
 	for i := range rules {
 		c.Scanned++
 		if rules[i].Title == title {
 			rule = &rules[i]
+			break
 		}
 	}
 	if rule == nil {
-		return Decision{Title: title, Status: "locked", Unlocked: len(p.Unlocked), Scanned: c.Scanned}
+		return decide("locked")
 	}
-	if p.Level >= rule.NeedLevel && p.Hours >= rule.NeedHours {
-		p.Unlocked = append(p.Unlocked, title)
-		return Decision{Title: title, Status: "unlocked", Unlocked: len(p.Unlocked), Scanned: c.Scanned}
+	levelOK := rule.Event || p.Level >= rule.NeedLevel
+	if !levelOK || p.Achievements < rule.NeedAchv || p.Hours < rule.NeedHours {
+		return decide("locked")
 	}
-	return Decision{Title: title, Status: "locked", Unlocked: len(p.Unlocked), Scanned: c.Scanned}
+	for _, need := range rule.Needs {
+		if !has(p.Unlocked, need) {
+			return decide("locked")
+		}
+	}
+	p.Unlocked = append(p.Unlocked, title)
+	return decide("unlocked")
 }
 
 // Has 报告玩家是否已解锁某个称号。
