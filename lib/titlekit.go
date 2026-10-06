@@ -43,21 +43,33 @@ func has(list []string, want string) bool {
 
 // Judge 判定一个称号能不能解锁，并在成功时记进玩家的已解锁列表。
 func Judge(rules []Rule, p *Player, title string, c *Counter) Decision {
+	if has(p.Unlocked, title) {
+		return Decision{Title: title, Status: "unlocked", Unlocked: len(p.Unlocked), Scanned: c.Scanned}
+	}
 	var rule *Rule
 	for i := range rules {
 		c.Scanned++
 		if rules[i].Title == title {
 			rule = &rules[i]
+			break
 		}
 	}
 	if rule == nil {
 		return Decision{Title: title, Status: "locked", Unlocked: len(p.Unlocked), Scanned: c.Scanned}
 	}
-	if p.Level >= rule.NeedLevel && p.Hours >= rule.NeedHours {
-		p.Unlocked = append(p.Unlocked, title)
-		return Decision{Title: title, Status: "unlocked", Unlocked: len(p.Unlocked), Scanned: c.Scanned}
+	if !rule.Event && p.Level < rule.NeedLevel {
+		return Decision{Title: title, Status: "locked", Unlocked: len(p.Unlocked), Scanned: c.Scanned}
 	}
-	return Decision{Title: title, Status: "locked", Unlocked: len(p.Unlocked), Scanned: c.Scanned}
+	if p.Achievements < rule.NeedAchv || p.Hours < rule.NeedHours {
+		return Decision{Title: title, Status: "locked", Unlocked: len(p.Unlocked), Scanned: c.Scanned}
+	}
+	for _, need := range rule.Needs {
+		if !has(p.Unlocked, need) {
+			return Decision{Title: title, Status: "locked", Unlocked: len(p.Unlocked), Scanned: c.Scanned}
+		}
+	}
+	p.Unlocked = append(p.Unlocked, title)
+	return Decision{Title: title, Status: "unlocked", Unlocked: len(p.Unlocked), Scanned: c.Scanned}
 }
 
 // Has 报告玩家是否已解锁某个称号。
